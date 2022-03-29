@@ -38,18 +38,21 @@ unsigned int oscillation_steps = 8;
 unsigned int oscillation_angle_pin = A2;
 
 // Hopper servo parameters
-HopperServo hopper_servo;
 int hopper_pin = 5;
-int hopper_initial_angle = 158;
-unsigned int hopper_rotation_speed = 90;
+int hopper_neutral_angle = 90;
+int hopper_min_angle = 0;
+int hopper_max_angle = 140;
+unsigned int hopper_rotation_speed = 45;
+HopperServo hopper_servo(hopper_min_angle, hopper_max_angle,
+                         hopper_rotation_speed);
 
 // Cycle parameters
 unsigned int period_max = 6000;
 unsigned int period_min = 1500;
 unsigned int period;
-unsigned long time_store;
+unsigned long time_cycle, time_last;
+unsigned long time_now = 0;
 unsigned int ball_count;
-unsigned int total_balls = 30;
 unsigned int cycle_period_pin = A3;
 
 // Switches
@@ -77,7 +80,7 @@ void setup() {
 
   // Hopper servo setup
   pinMode(hopper_pin, OUTPUT);
-  hopper_servo.initialize(hopper_pin, hopper_initial_angle);
+  hopper_servo.initialize(hopper_pin, hopper_neutral_angle);
 
   // Top ESC setup
   pinMode(top_ESC_pin, OUTPUT);
@@ -120,7 +123,7 @@ void start_cycle(int top_throttle, int bot_throttle,
   // Set servos to proper initial angle
   flap_servo.closeFlap();
   pan_servo.setAngle(pan_neutral_angle, pan_rotation_speed);
-  hopper_servo.setAngle(hopper_initial_angle);
+  hopper_servo.setAngle(hopper_neutral_angle);
 
   // Give some time for the player to get ready
   period = startup_delay;
@@ -128,7 +131,9 @@ void start_cycle(int top_throttle, int bot_throttle,
   // Set some global variables
   prev_start_stop = 1;
   ball_count = 0;
-  time_store = millis();
+  time_cycle = millis();
+  time_now = time_cycle;
+  time_last = time_cycle;
 }
 
 
@@ -141,7 +146,7 @@ void end_cycle() {
   // Set servos to proper initial angle
   flap_servo.closeFlap();
   pan_servo.setAngle(pan_neutral_angle, pan_rotation_speed);
-  hopper_servo.setAngle(hopper_initial_angle);
+  hopper_servo.setAngle(hopper_neutral_angle);
 
   // Set some global variables
   prev_start_stop = 0;
@@ -153,7 +158,6 @@ void end_cycle() {
   
 /** Main loop **/
 void loop() {
-  unsigned long time_now;
   unsigned int input_period;
   int top_throttle, bot_throttle, pan_angle, pan_range;
   char buff[40];
@@ -208,28 +212,29 @@ void loop() {
   bot_ESC.setThrottle(bot_throttle, throttle_change_speed);
   
   // Keep track of cycle timing in a non-blocking way using millis()
+  time_last = time_now;
   time_now = millis();
 
   if (start_stop == 1) {
-    // Oscillate requested, release a ball, and rotate hopper if needed
-    if (time_now >= time_store + period) {
-      if (ball_count < total_balls) {
-        time_store = time_now;
-        if (oscillation_mode == 1) {
-          pan_servo.nextAngle(pan_neutral_angle, pan_range, oscillation_steps,
-                              pan_rotation_speed, random_oscillation);
-        }
-        flap_servo.releaseBall();
-        ball_count++;
-        hopper_servo.rotate(ball_count, hopper_rotation_speed);
+    // Use servo to stir balls in hopper
+    hopper_servo.rotate(time_now-time_last);
 
-        // Set period from analog input
-        period = input_period;
-
-        // Print status to serial output
-        sprintf(buff, "Ball count: %d", ball_count);
-        Serial.println(buff);
+    // Oscillate if requested and release a ball
+    if (time_now >= time_cycle + period) {
+      time_cycle = time_now;
+      if (oscillation_mode == 1) {
+        pan_servo.nextAngle(pan_neutral_angle, pan_range, oscillation_steps,
+                            pan_rotation_speed, random_oscillation);
       }
+      flap_servo.releaseBall();
+      ball_count++;
+
+      // Set period from analog input
+      period = input_period;
+
+      // Print status to serial output
+      sprintf(buff, "Ball count: %d", ball_count);
+      Serial.println(buff);
     }
   }
 }

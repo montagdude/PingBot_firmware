@@ -4,9 +4,12 @@
 
 class HopperServo: public MyServo {
   protected:
-    int _rotation_counts[4] = {10, 15, 20, 25};
-    int _rotation_angles[4] = {113, 68, 23, 0};
+    int _min_angle = 0;
+    int _max_angle = 180;
+    unsigned int _rotation_speed = 45;
+    unsigned int _direction = 0;
 
   public:
-    void rotate(unsigned int ball_count, unsigned int rotation_speed=0);
+    HopperServo(int min_angle, int max_angle, unsigned int rotation_speed);
+    void rotate(unsigned long dt);
 };
