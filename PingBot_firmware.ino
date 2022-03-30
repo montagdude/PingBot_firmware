@@ -212,26 +212,24 @@ void loop() {
   // Keep track of cycle timing in a non-blocking way using millis()
   time_now = millis();
 
-  if (start_stop == 1) {
-    // Rotate hopper servo to prevent ball jams
-    hopper_servo.rotate(time_now);
+  // Rotate hopper servo to prevent ball jams
+  hopper_servo.rotate(time_now);
 
-    // Oscillate if requested and release a ball
-    if (time_now >= time_cycle + period) {
-      time_cycle = time_now;
-      if (oscillation_mode == 1) {
-        pan_servo.nextAngle(pan_neutral_angle, pan_range, oscillation_steps,
-                            pan_rotation_speed, random_oscillation);
-      }
-      flap_servo.releaseBall();
-      ball_count++;
-
-      // Set period from analog input
-      period = input_period;
-
-      // Print status to serial output
-      sprintf(buff, "Ball count: %d", ball_count);
-      Serial.println(buff);
+  // When next cycle is up, oscillate if requested and release a ball
+  if (time_now >= time_cycle + period) {
+    time_cycle = time_now;
+    if (oscillation_mode == 1) {
+      pan_servo.nextAngle(pan_neutral_angle, pan_range, oscillation_steps,
+                          pan_rotation_speed, random_oscillation);
     }
+    flap_servo.releaseBall();
+    ball_count++;
+
+    // Set period from analog input
+    period = input_period;
+
+    // Print status to serial output
+    sprintf(buff, "Ball count: %d", ball_count);
+    Serial.println(buff);
   }
 }
