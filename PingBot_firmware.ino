@@ -41,8 +41,8 @@ unsigned int oscillation_angle_pin = A2;
 int hopper_pin = 5;
 int hopper_neutral_angle = 90;
 int hopper_min_angle = 0;
-int hopper_max_angle = 140;
-unsigned int hopper_rotation_speed = 45;
+int hopper_max_angle = 145;
+unsigned int hopper_rotation_speed = 60;
 HopperServo hopper_servo(hopper_min_angle, hopper_max_angle,
                          hopper_rotation_speed);
 
@@ -50,10 +50,9 @@ HopperServo hopper_servo(hopper_min_angle, hopper_max_angle,
 unsigned int period_max = 6000;
 unsigned int period_min = 1500;
 unsigned int period;
-unsigned long time_cycle, time_last;
-unsigned long time_now = 0;
 unsigned int ball_count;
 unsigned int cycle_period_pin = A3;
+unsigned long time_cycle;
 
 // Switches
 unsigned int start_stop_pin = 8;
@@ -123,7 +122,7 @@ void start_cycle(int top_throttle, int bot_throttle,
   // Set servos to proper initial angle
   flap_servo.closeFlap();
   pan_servo.setAngle(pan_neutral_angle, pan_rotation_speed);
-  hopper_servo.setAngle(hopper_neutral_angle);
+  hopper_servo.setAngle(hopper_neutral_angle, hopper_rotation_speed);
 
   // Give some time for the player to get ready
   period = startup_delay;
@@ -132,8 +131,6 @@ void start_cycle(int top_throttle, int bot_throttle,
   prev_start_stop = 1;
   ball_count = 0;
   time_cycle = millis();
-  time_now = time_cycle;
-  time_last = time_cycle;
 }
 
 
@@ -146,7 +143,7 @@ void end_cycle() {
   // Set servos to proper initial angle
   flap_servo.closeFlap();
   pan_servo.setAngle(pan_neutral_angle, pan_rotation_speed);
-  hopper_servo.setAngle(hopper_neutral_angle);
+  hopper_servo.setAngle(hopper_neutral_angle, hopper_rotation_speed);
 
   // Set some global variables
   prev_start_stop = 0;
@@ -160,6 +157,7 @@ void end_cycle() {
 void loop() {
   unsigned int input_period;
   int top_throttle, bot_throttle, pan_angle, pan_range;
+  unsigned long time_now;
   char buff[40];
 
   // Read switches
@@ -212,12 +210,11 @@ void loop() {
   bot_ESC.setThrottle(bot_throttle, throttle_change_speed);
   
   // Keep track of cycle timing in a non-blocking way using millis()
-  time_last = time_now;
   time_now = millis();
 
   if (start_stop == 1) {
-    // Use servo to stir balls in hopper
-    hopper_servo.rotate(time_now-time_last);
+    // Rotate hopper servo to prevent ball jams
+    hopper_servo.rotate(time_now);
 
     // Oscillate if requested and release a ball
     if (time_now >= time_cycle + period) {
