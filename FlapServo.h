@@ -10,6 +10,8 @@ class FlapServo: public MyServo {
 
   public:
     void initialize(int pin);
+    double sineInclineAngle(int launcher_pitch, int launcher_pan) const;
+    void setOpenDelay(int launcher_pitch, int launcher_pan);
     void releaseBall();
     void closeFlap();
 };

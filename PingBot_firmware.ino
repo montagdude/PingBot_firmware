@@ -156,7 +156,7 @@ void end_cycle() {
 /** Main loop **/
 void loop() {
   unsigned int input_period;
-  int top_throttle, bot_throttle, pan_angle, pan_range;
+  int top_throttle, bot_throttle, launcher_pan, pan_range, launcher_pitch;
   unsigned long time_now;
   char buff[40];
 
@@ -173,10 +173,10 @@ void loop() {
 
   // Set oscillation angle or range
   if (oscillation_mode == 0) {
-    pan_angle = map(analogRead(oscillation_angle_pin), 0, 1023,
-                               pan_neutral_angle+pan_max_rotation/2,
-                               pan_neutral_angle-pan_max_rotation/2);
-    pan_servo.setAngle(pan_angle, pan_rotation_speed);
+    launcher_pan = map(analogRead(oscillation_angle_pin), 0, 1023,
+                                  pan_neutral_angle+pan_max_rotation/2,
+                                  pan_neutral_angle-pan_max_rotation/2);
+    pan_servo.setAngle(launcher_pan, pan_rotation_speed);
   }
   else {
     pan_range = map(analogRead(oscillation_angle_pin), 0, 1023, 0,
@@ -189,10 +189,13 @@ void loop() {
   input_period = map(analogRead(cycle_period_pin), 0, 1023, period_max,
                      period_min);
 
+  // Read launcher angle
+  launcher_pitch = 0;
+
   // Print debugging info
-  //sprintf(buff, "%d, %d, %d, %d, %d, %d, %d", top_throttle, bot_throttle,
-  //        pan_servo.angle(), input_period, start_stop, oscillation_mode,
-  //        random_oscillation);
+  //sprintf(buff, "%d, %d, %d, %d, %d, %d, %d, %d", top_throttle, bot_throttle,
+  //        pan_servo.angle(), input_period, launcher_pitch, start_stop,
+  //        oscillation_mode, random_oscillation);
   //Serial.println(buff);
 
   // Procedures at start and end of cycle
@@ -215,13 +218,18 @@ void loop() {
   // Rotate hopper servo to prevent ball jams
   hopper_servo.rotate(time_now);
 
-  // When next cycle is up, oscillate if requested and release a ball
+  // Launch the next ball when the cycle is up
   if (time_now >= time_cycle + period) {
     time_cycle = time_now;
+
+    // Pan
     if (oscillation_mode == 1) {
       pan_servo.nextAngle(pan_neutral_angle, pan_range, oscillation_steps,
                           pan_rotation_speed, random_oscillation);
     }
+
+    // Calculate flap open time based on launcher orientation and release ball
+    flap_servo.setOpenDelay(launcher_pitch, pan_servo.angle());
     flap_servo.releaseBall();
     ball_count++;
 
