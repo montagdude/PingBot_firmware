@@ -34,7 +34,7 @@ unsigned int pan_pin = 10;
 int pan_neutral_angle = 93;
 unsigned int pan_max_rotation = 60;
 unsigned int pan_rotation_speed = 45;
-unsigned int oscillation_steps = 8;
+unsigned int oscillation_steps = 6;
 unsigned int oscillation_angle_pin = A2;
 
 // Hopper servo parameters
@@ -42,7 +42,7 @@ int hopper_pin = 5;
 int hopper_neutral_angle = 90;
 int hopper_min_angle = 0;
 int hopper_max_angle = 145;
-unsigned int hopper_rotation_speed = 60;
+unsigned int hopper_rotation_speed = 120;
 HopperServo hopper_servo(hopper_min_angle, hopper_max_angle,
                          hopper_rotation_speed);
 
@@ -114,7 +114,7 @@ void start_cycle(int top_throttle, int bot_throttle,
   char buff[40];
   sprintf(buff, "PingBot firmware version %s", fver);
   Serial.println(buff);
-  
+
   // Slowly increase throttle to set value
   top_ESC.setThrottle(top_throttle, startup_throttle_change_speed);
   bot_ESC.setThrottle(bot_throttle, startup_throttle_change_speed);
@@ -165,11 +165,11 @@ void loop() {
   oscillation_mode = digitalRead(oscillation_mode_pin);
   random_oscillation = digitalRead(random_oscillation_pin);
 
-  // Read throttles. Map from 10-1023 -> 0-100 gives a little deadband at the
+  // Read throttles. Map from 5-1023 -> 0-100 gives a little deadband at the
   // low end to correct small voltage deviations that may keep it from going to
   // 0.
-  top_throttle = map(analogRead(top_throttle_pin), 10, 1023, 0, 100);
-  bot_throttle = map(analogRead(bot_throttle_pin), 10, 1023, 0, 100);
+  top_throttle = map(analogRead(top_throttle_pin), 5, 1023, 0, 100);
+  bot_throttle = map(analogRead(bot_throttle_pin), 5, 1023, 0, 100);
 
   // Set oscillation angle or range
   if (oscillation_mode == 0) {
