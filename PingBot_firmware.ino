@@ -1,6 +1,6 @@
+#include <Servo.h>
 #include "PanServo.h"
 #include "FlapServo.h"
-#include "HopperServo.h"
 #include "ESC.h"
 
 // Firmware version
@@ -37,14 +37,10 @@ unsigned int pan_rotation_speed = 45;
 unsigned int oscillation_steps = 6;
 unsigned int oscillation_angle_pin = A2;
 
-// Hopper servo parameters
+// Hopper servo parameters (assumed to be a continuous rotation servo)
+Servo hopper_servo;
 int hopper_pin = 5;
-int hopper_neutral_angle = 90;
-int hopper_min_angle = 0;
-int hopper_max_angle = 145;
-unsigned int hopper_rotation_speed = 120;
-HopperServo hopper_servo(hopper_min_angle, hopper_max_angle,
-                         hopper_rotation_speed);
+int hopper_servo_angle = 120;   // For CR servo, angle controls speed
 
 // Cycle parameters
 unsigned int period_max = 6000;
@@ -79,7 +75,6 @@ void setup() {
 
   // Hopper servo setup
   pinMode(hopper_pin, OUTPUT);
-  hopper_servo.initialize(hopper_pin, hopper_neutral_angle);
 
   // Top ESC setup
   pinMode(top_ESC_pin, OUTPUT);
@@ -122,7 +117,10 @@ void start_cycle(int top_throttle, int bot_throttle,
   // Set servos to proper initial angle
   flap_servo.closeFlap();
   pan_servo.setAngle(pan_neutral_angle, pan_rotation_speed);
-  hopper_servo.setAngle(hopper_neutral_angle, hopper_rotation_speed);
+
+  // Start hopper servo (continuous rotation)
+  hopper_servo.attach(hopper_pin);
+  hopper_servo.write(hopper_servo_angle);
 
   // Give some time for the player to get ready
   period = startup_delay;
@@ -143,7 +141,10 @@ void end_cycle() {
   // Set servos to proper initial angle
   flap_servo.closeFlap();
   pan_servo.setAngle(pan_neutral_angle, pan_rotation_speed);
-  hopper_servo.setAngle(hopper_neutral_angle, hopper_rotation_speed);
+
+  // Stop hopper servo (continuous rotation)
+  hopper_servo.write(90);
+  hopper_servo.detach();
 
   // Set some global variables
   prev_start_stop = 0;
@@ -214,9 +215,6 @@ void loop() {
   
   // Keep track of cycle timing in a non-blocking way using millis()
   time_now = millis();
-
-  // Rotate hopper servo to prevent ball jams
-  hopper_servo.rotate(time_now);
 
   // Launch the next ball when the cycle is up
   if (time_now >= time_cycle + period) {
