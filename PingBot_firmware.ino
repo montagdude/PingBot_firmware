@@ -40,7 +40,7 @@ unsigned int oscillation_angle_pin = A2;
 // Hopper servo parameters (assumed to be a continuous rotation servo)
 Servo hopper_servo;
 int hopper_pin = 5;
-int hopper_servo_angle = 120;   // For CR servo, angle controls speed
+int hopper_servo_angle = 84;    // For CR servo, angle controls speed
 
 // Cycle parameters
 unsigned int period_max = 6000;
