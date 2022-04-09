@@ -40,7 +40,7 @@ unsigned int oscillation_angle_pin = A2;
 // Hopper servo parameters (assumed to be a continuous rotation servo)
 Servo hopper_servo;
 int hopper_pin = 5;
-int hopper_servo_angle = 84;    // For CR servo, angle controls speed
+int hopper_servo_angle = 83;    // For CR servo, angle controls speed
 
 // Cycle parameters
 unsigned int period_max = 6000;
@@ -166,11 +166,12 @@ void loop() {
   oscillation_mode = digitalRead(oscillation_mode_pin);
   random_oscillation = digitalRead(random_oscillation_pin);
 
-  // Read throttles. Map from 5-1023 -> 0-100 gives a little deadband at the
+  // Read throttles. Map from 5-1023 -> 0-65 gives a little deadband at the
   // low end to correct small voltage deviations that may keep it from going to
-  // 0.
-  top_throttle = map(analogRead(top_throttle_pin), 5, 1023, 0, 100);
-  bot_throttle = map(analogRead(bot_throttle_pin), 5, 1023, 0, 100);
+  // 0. Also only go up to 65% throttle, because full power is way faster than
+  // anyone would ever need.
+  top_throttle = map(analogRead(top_throttle_pin), 5, 1023, 0, 65);
+  bot_throttle = map(analogRead(bot_throttle_pin), 5, 1023, 0, 65);
 
   // Set oscillation angle or range
   if (oscillation_mode == 0) {
