@@ -7,7 +7,7 @@
 #define DEG2RAD 0.017453292519943295
 #define CX 0.9205048534524404
 #define SX 0.39073112848927377
-#define ROLLDIST 45.0
+#define ROLLDIST 60.0
 #define G 9810.0
 
 /** Attach to pin and set initial angle to closed angle**/
