@@ -23,6 +23,7 @@ unsigned int bot_throttle_pin = A1;
 // Common ESC parameters
 unsigned int throttle_change_speed = 100;
 unsigned int startup_throttle_change_speed = 25;
+unsigned int throttle_max = 50; // Full power is not needed; limit to 50
 
 // Flap servo parameters
 FlapServo flap_servo;
@@ -166,12 +167,9 @@ void loop() {
   oscillation_mode = digitalRead(oscillation_mode_pin);
   random_oscillation = digitalRead(random_oscillation_pin);
 
-  // Read throttles. Map from 5-1023 -> 0-65 gives a little deadband at the
-  // low end to correct small voltage deviations that may keep it from going to
-  // 0. Also only go up to 65% throttle, because full power is way faster than
-  // anyone would ever need.
-  top_throttle = map(analogRead(top_throttle_pin), 5, 1023, 0, 65);
-  bot_throttle = map(analogRead(bot_throttle_pin), 5, 1023, 0, 65);
+  // Read throttles
+  top_throttle = map(analogRead(top_throttle_pin), 0, 1023, 0, throttle_max);
+  bot_throttle = map(analogRead(bot_throttle_pin), 0, 1023, 0, throttle_max);
 
   // Set oscillation angle or range
   if (oscillation_mode == 0) {
