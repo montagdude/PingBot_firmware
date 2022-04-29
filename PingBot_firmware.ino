@@ -4,7 +4,7 @@
 #include "ESC.h"
 
 // Firmware version
-const char * fver = "0.1";
+const char * fver = "0.2";
 
 // Top motor ESC parameters
 ESC top_ESC;
