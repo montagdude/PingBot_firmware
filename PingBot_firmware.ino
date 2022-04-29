@@ -64,6 +64,9 @@ unsigned int oscillation_mode = 0;
 unsigned int random_oscillation_pin = 4;
 unsigned int random_oscillation = 0;
 
+// Pitch angle potentiometer
+unsigned int pitch_angle_pin = A4;
+
 // Other parameters
 unsigned int startup_delay = 5000;
 
@@ -189,7 +192,7 @@ void loop() {
                      period_min);
 
   // Read launcher angle
-  launcher_pitch = 0;
+  launcher_pitch = map(analogRead(pitch_angle_pin), 414, 566, 20, -20);
 
   // Print debugging info
   //sprintf(buff, "%d, %d, %d, %d, %d, %d, %d, %d", top_throttle, bot_throttle,
