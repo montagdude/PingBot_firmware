@@ -1,6 +1,26 @@
 #include <Arduino.h>
 #include "MyServo.h"
 
+/** Avoid name collisions with min and max in standard servo library **/
+int MyServo::myMin(int val1, int val2) const {
+  int mymin;
+  if (val1 < val2)
+    mymin = val1;
+  else
+    mymin = val2;
+    
+  return mymin;
+}
+int MyServo::myMax(int val1, int val2) const {
+  int mymax;
+  if (val1 > val2)
+    mymax = val1;
+  else
+    mymax = val2;
+    
+  return mymax;
+}
+
 /** Constructor **/
 MyServo::MyServo() {
   _current_angle = -180;
@@ -32,9 +52,9 @@ void MyServo::setAngle(int new_angle, unsigned int rotation_speed) {
       dt = time_now - start_time;
       delta_angle = int(float(rotation_speed*dt)/1000.);
       if (begin_angle < new_angle)
-        _current_angle = min(begin_angle + delta_angle, new_angle);
+        _current_angle = myMin(begin_angle + delta_angle, new_angle);
       else
-        _current_angle = max(begin_angle - delta_angle, new_angle);
+        _current_angle = myMax(begin_angle - delta_angle, new_angle);
       write(_current_angle);
     }
   }

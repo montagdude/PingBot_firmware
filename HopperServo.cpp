@@ -18,7 +18,7 @@ void HopperServo::rotate(unsigned long time_now) {
   // Calculate angular change based on rotation speed, subject to a maximum
   // limit
   dt = time_now - _time_last;
-  dangle = min(int(float(_rotation_speed*dt)/1000.), _max_dangle);
+  dangle = myMin(int(float(_rotation_speed*dt)/1000.), _max_dangle);
 
   // Use min_angle to make sure we don't try to adjust the servo through a
   // vanishingly small time/angle

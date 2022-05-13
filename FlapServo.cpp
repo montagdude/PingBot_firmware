@@ -29,7 +29,7 @@ double FlapServo::sineInclineAngle(int launcher_pitch, int launcher_pan) const {
 
   // Launcher pitch angle limits - needs to be between > -12
   // (and convert to radians)
-  theta = DEG2RAD*double(min(max(-11, launcher_pitch), 60));
+  theta = DEG2RAD*double(myMin(myMax(-11, launcher_pitch), 60));
 
   // Pan angle with zero-reference at pan servo angle 90 degrees
   psi = DEG2RAD*double(launcher_pan-90);

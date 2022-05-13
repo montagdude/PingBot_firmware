@@ -6,6 +6,10 @@ class MyServo: public Servo {
   protected:
     int _current_angle;
 
+    // Avoid name collision with min/max in Servo library
+    int myMin(int val1, int val2) const;
+    int myMax(int val1, int val2) const;
+
   public:
     // Constructor
     MyServo();

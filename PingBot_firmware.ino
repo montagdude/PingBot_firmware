@@ -1,21 +1,23 @@
+#include <Arduino_LSM9DS1.h>
 #include "PanServo.h"
 #include "FlapServo.h"
 #include "HopperServo.h"
 #include "ESC.h"
+#include "MyIMU.h"
 
 // Firmware version
 const char * fver = "0.2";
 
 // Top motor ESC parameters
 ESC top_ESC;
-unsigned int top_ESC_pin = 9;
+unsigned int top_ESC_pin = 8;
 int top_ESC_pw_low = 1000;
 int top_ESC_pw_full = 2000;
 unsigned int top_throttle_pin = A0;
 
 // Bottom motor ESC parameters
 ESC bot_ESC;
-unsigned int bot_ESC_pin = 6;
+unsigned int bot_ESC_pin = 9;
 int bot_ESC_pw_low = 1000;
 int bot_ESC_pw_full = 2000;
 unsigned int bot_throttle_pin = A1;
@@ -27,11 +29,11 @@ unsigned int throttle_max = 50; // Full power is not needed; limit to 50
 
 // Flap servo parameters
 FlapServo flap_servo;
-unsigned int flap_pin = 11;
+unsigned int flap_pin = 6;
 
 // Pan servo parameters
 PanServo pan_servo;
-unsigned int pan_pin = 10;
+unsigned int pan_pin = 7;
 int pan_neutral_angle = 93;
 unsigned int pan_max_rotation = 60;
 unsigned int pan_rotation_speed = 45;
@@ -56,15 +58,20 @@ unsigned int cycle_period_pin = A3;
 unsigned long time_cycle;
 
 // Switches
-unsigned int start_stop_pin = 8;
+unsigned int start_stop_pin = 2;
 unsigned int start_stop = 0;
 unsigned int prev_start_stop = 0;
-unsigned int oscillation_mode_pin = 7;
+unsigned int oscillation_mode_pin = 3;
 unsigned int oscillation_mode = 0;
 unsigned int random_oscillation_pin = 4;
 unsigned int random_oscillation = 0;
 
-// Pitch angle potentiometer
+// IMU for sensing pitch angle
+MyIMU mimu;
+bool imu_initialized = false;
+int imu_pitch = 0;
+
+// Pitch angle adjustment potentiometer
 unsigned int pitch_angle_pin = A4;
 
 // Other parameters
@@ -73,6 +80,8 @@ unsigned int startup_delay = 5000;
 
 /** Setup **/
 void setup() {
+  Serial.begin(9600);
+
   // Flap servo setup
   pinMode(flap_pin, OUTPUT);
   flap_servo.initialize(flap_pin);
@@ -100,9 +109,14 @@ void setup() {
   pinMode(oscillation_mode_pin, INPUT);
   pinMode(random_oscillation_pin, INPUT);
 
-  // Other setup
-  Serial.begin(9600);
-    
+  // IMU setup
+  if (!IMU.begin()) {
+    Serial.println("Failed to initialize IMU!");
+    while(1);
+  }
+  else
+    imu_initialized = true;
+
   // Since A5 is disconnected, analog noise will cause randomSeed to generate
   // different seed numbers each time it runs.
   randomSeed(analogRead(A5)); // Random seed 
@@ -160,7 +174,7 @@ void end_cycle() {
 /** Main loop **/
 void loop() {
   unsigned int input_period;
-  int top_throttle, bot_throttle, launcher_pan, pan_range, launcher_pitch;
+  int top_throttle, bot_throttle, launcher_pan, pan_range, pitch_adjust;
   unsigned long time_now;
   char buff[40];
 
@@ -174,6 +188,7 @@ void loop() {
   bot_throttle = map(analogRead(bot_throttle_pin), 0, 1023, 0, throttle_max);
 
   // Set oscillation angle or range
+  pan_range = 40;   // Set to get rid of compiler warning
   if (oscillation_mode == 0) {
     launcher_pan = map(analogRead(oscillation_angle_pin), 0, 1023,
                                   pan_neutral_angle+pan_max_rotation/2,
@@ -191,12 +206,16 @@ void loop() {
   input_period = map(analogRead(cycle_period_pin), 0, 1023, period_max,
                      period_min);
 
-  // Read launcher angle
-  launcher_pitch = map(analogRead(pitch_angle_pin), 414, 566, 20, -20);
+  // Update pitch and roll moving averages from IMU
+  if (imu_initialized)
+    mimu.update();
+
+  // Read pitch adjustment and combine with imu pitch
+  pitch_adjust = map(analogRead(pitch_angle_pin), 414, 566, 20, -20);
 
   // Print debugging info
   //sprintf(buff, "%d, %d, %d, %d, %d, %d, %d, %d", top_throttle, bot_throttle,
-  //        pan_servo.angle(), input_period, launcher_pitch, start_stop,
+  //        pan_servo.angle(), input_period, imu_pitch+pitch_adjust, start_stop,
   //        oscillation_mode, random_oscillation);
   //Serial.println(buff);
 
@@ -230,8 +249,11 @@ void loop() {
                           pan_rotation_speed, random_oscillation);
     }
 
+    // Get moving-averaged pitch value from IMU
+    imu_pitch = round(mimu.pitch());
+    
     // Calculate flap open time based on launcher orientation and release ball
-    flap_servo.setOpenDelay(launcher_pitch, pan_servo.angle());
+    flap_servo.setOpenDelay(imu_pitch+pitch_adjust, pan_servo.angle());
     flap_servo.releaseBall();
     ball_count++;
 
