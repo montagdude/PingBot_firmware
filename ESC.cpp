@@ -22,7 +22,12 @@ void ESC::arm() {
 
 /** Calibrate ESC programmatically. Should be done in setup so that
     the high throttle signal is the first thing the ESC sees. After
-    calibrating once, it shouldn't need to be done again. **/
+    calibrating once, it shouldn't need to be done again. 
+    e.g.:
+    pinMode(esc_pin, OUTPUT);
+    esc.initialize(esc_pin, low, high);
+    esc.calibrate();
+    **/
 void ESC::calibrate() {
   // Send the high throttle signal for 5 seconds, then the low throttle
   // signal for 5 seconds.

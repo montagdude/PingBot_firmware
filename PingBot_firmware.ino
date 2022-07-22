@@ -8,24 +8,25 @@
 // Firmware version
 const char * fver = "0.2";
 
+// Note: on Nano 33 BLE A4 and A5 are not supposed to be used as regular
+//   analog inputs, so use A6 instead.
 // Top motor ESC parameters
 ESC top_ESC;
 unsigned int top_ESC_pin = 8;
-int top_ESC_pw_low = 1000;
-int top_ESC_pw_full = 2000;
-unsigned int top_throttle_pin = A0;
+unsigned int top_throttle_pin = A6;
 
 // Bottom motor ESC parameters
 ESC bot_ESC;
 unsigned int bot_ESC_pin = 9;
-int bot_ESC_pw_low = 1000;
-int bot_ESC_pw_full = 2000;
-unsigned int bot_throttle_pin = A1;
+unsigned int bot_throttle_pin = A3;
 
 // Common ESC parameters
+int ESC_pw_low = 925;
+int ESC_pw_full = 2000;
 unsigned int throttle_change_speed = 100;
 unsigned int startup_throttle_change_speed = 25;
-unsigned int throttle_max = 50; // Full power is not needed; limit to 50
+unsigned int throttle_zero = 20;  // Because the ESC doesn't like to start at true 0
+unsigned int throttle_max = 50;   // Full power is not needed; limit to 50
 
 // Flap servo parameters
 FlapServo flap_servo;
@@ -54,7 +55,7 @@ unsigned int period_max = 6000;
 unsigned int period_min = 1500;
 unsigned int period;
 unsigned int ball_count;
-unsigned int cycle_period_pin = A3;
+unsigned int cycle_period_pin = A1;
 unsigned long time_cycle;
 
 // Switches
@@ -72,7 +73,7 @@ bool imu_initialized = false;
 int imu_pitch = 0;
 
 // Pitch angle adjustment potentiometer
-unsigned int pitch_angle_pin = A4;
+unsigned int pitch_angle_pin = A0;
 
 // Other parameters
 unsigned int startup_delay = 5000;
@@ -81,6 +82,18 @@ unsigned int startup_delay = 5000;
 /** Setup **/
 void setup() {
   Serial.begin(9600);
+
+  // Top ESC setup
+  pinMode(top_ESC_pin, OUTPUT);
+  top_ESC.initialize(top_ESC_pin, ESC_pw_low, ESC_pw_full);
+  //top_ESC.calibrate();  // Only needed first time
+  top_ESC.arm();
+
+  // Bottom ESC setup
+  pinMode(bot_ESC_pin, OUTPUT);
+  bot_ESC.initialize(bot_ESC_pin, ESC_pw_low, ESC_pw_full);
+  //bot_ESC.calibrate();  // Only needed first time
+  bot_ESC.arm();
 
   // Flap servo setup
   pinMode(flap_pin, OUTPUT);
@@ -93,16 +106,6 @@ void setup() {
   // Hopper servo setup
   pinMode(hopper_pin, OUTPUT);
   hopper_servo.initialize(hopper_pin, hopper_neutral_angle);
-
-  // Top ESC setup
-  pinMode(top_ESC_pin, OUTPUT);
-  top_ESC.initialize(top_ESC_pin, top_ESC_pw_low, top_ESC_pw_full);
-  top_ESC.arm();
-
-  // Bottom ESC setup
-  pinMode(bot_ESC_pin, OUTPUT);
-  bot_ESC.initialize(bot_ESC_pin, bot_ESC_pw_low, bot_ESC_pw_full);
-  bot_ESC.arm();
 
   // Switches setup
   pinMode(start_stop_pin, INPUT);
@@ -117,9 +120,9 @@ void setup() {
   else
     imu_initialized = true;
 
-  // Since A5 is disconnected, analog noise will cause randomSeed to generate
+  // Since A7 is disconnected, analog noise will cause randomSeed to generate
   // different seed numbers each time it runs.
-  randomSeed(analogRead(A5)); // Random seed 
+  randomSeed(analogRead(A7)); // Random seed
 }
 
 
@@ -136,7 +139,7 @@ void start_cycle(int top_throttle, int bot_throttle,
   // Slowly increase throttle to set value
   top_ESC.setThrottle(top_throttle, startup_throttle_change_speed);
   bot_ESC.setThrottle(bot_throttle, startup_throttle_change_speed);
-  
+
   // Set servos to proper initial angle
   flap_servo.closeFlap();
   pan_servo.setAngle(pan_neutral_angle, pan_rotation_speed);
@@ -144,7 +147,7 @@ void start_cycle(int top_throttle, int bot_throttle,
 
   // Give some time for the player to get ready
   period = startup_delay;
-  
+
   // Set some global variables
   prev_start_stop = 1;
   ball_count = 0;
@@ -170,11 +173,11 @@ void end_cycle() {
   Serial.println("Ended cycle.");
 }
 
-  
+
 /** Main loop **/
 void loop() {
   unsigned int input_period;
-  int top_throttle, bot_throttle, launcher_pan, pan_range, pitch_adjust;
+  int top_throttle, bot_throttle, launcher_pan, pan_range, pitch_adjust, pan_setting;
   unsigned long time_now;
   char buff[40];
 
@@ -184,8 +187,9 @@ void loop() {
   random_oscillation = digitalRead(random_oscillation_pin);
 
   // Read throttles
-  top_throttle = map(analogRead(top_throttle_pin), 0, 1023, 0, throttle_max);
-  bot_throttle = map(analogRead(bot_throttle_pin), 0, 1023, 0, throttle_max);
+  top_throttle = map(analogRead(top_throttle_pin), 0, 1023, throttle_zero, throttle_max);
+  bot_throttle = map(analogRead(bot_throttle_pin), 0, 1023, throttle_zero
+  , throttle_max);
 
   // Set oscillation angle or range
   pan_range = 40;   // Set to get rid of compiler warning
@@ -194,10 +198,12 @@ void loop() {
                                   pan_neutral_angle+pan_max_rotation/2,
                                   pan_neutral_angle-pan_max_rotation/2);
     pan_servo.setAngle(launcher_pan, pan_rotation_speed);
+    pan_setting = pan_servo.angle();
   }
   else {
     pan_range = map(analogRead(oscillation_angle_pin), 0, 1023, 0,
                     pan_max_rotation);
+    pan_setting = pan_range;
   }
 
   // Read cycle period from analog input, but don't set it ('period' variable)
@@ -214,10 +220,13 @@ void loop() {
   pitch_adjust = map(analogRead(pitch_angle_pin), 414, 566, 20, -20);
 
   // Print debugging info
-  //sprintf(buff, "%d, %d, %d, %d, %d, %d, %d, %d", top_throttle, bot_throttle,
-  //        pan_servo.angle(), input_period, imu_pitch+pitch_adjust, start_stop,
-  //        oscillation_mode, random_oscillation);
-  //Serial.println(buff);
+  sprintf(buff, "%d, %d, %d, %d, %d, %d, %d, %d", analogRead(top_throttle_pin), analogRead(bot_throttle_pin),
+          analogRead(oscillation_angle_pin), analogRead(cycle_period_pin), analogRead(pitch_angle_pin), start_stop,
+          oscillation_mode, random_oscillation);
+  //sprintf(buff, "%d, %d, %d, %d, %d, %d, %d, %d", top_throttle, bot_throttle, pan_setting, input_period,
+  //        int(round(mimu.pitch()))+pitch_adjust, start_stop, oscillation_mode, random_oscillation);
+  //        //pitch_adjust, start_stop, oscillation_mode, random_oscillation);
+  Serial.println(buff);
 
   // Procedures at start and end of cycle
   if ( (start_stop == 1) && (prev_start_stop == 0) )
@@ -232,7 +241,7 @@ void loop() {
   // Set throttle
   top_ESC.setThrottle(top_throttle, throttle_change_speed);
   bot_ESC.setThrottle(bot_throttle, throttle_change_speed);
-  
+
   // Keep track of cycle timing in a non-blocking way using millis()
   time_now = millis();
 
@@ -251,7 +260,7 @@ void loop() {
 
     // Get moving-averaged pitch value from IMU
     imu_pitch = round(mimu.pitch());
-    
+
     // Calculate flap open time based on launcher orientation and release ball
     flap_servo.setOpenDelay(imu_pitch+pitch_adjust, pan_servo.angle());
     flap_servo.releaseBall();
